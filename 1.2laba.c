@@ -153,18 +153,16 @@ void copy_file(const char* src, const char* dst) {
     return;
 }
 
-void *memmem(const void *haystack, size_t haystacklen,
-    const void *needle, size_t needlelen) {
+void *memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen) {
     if (needlelen == 0) return (void *)haystack;
     if (haystacklen < needlelen) return NULL;
 
     const char *h = haystack;
     const char *n = needle;
-    const char *end = h + haystacklen - needlelen + 1;
 
-    for (; h < end; h++) {
-        if (*h == *n && memcmp(h, n, needlelen) == 0) {
-            return (void *)h;
+    for (size_t i = 0; i <= haystacklen - needlelen; i++) {
+        if (memcmp(&h[i], n, needlelen) == 0) {
+            return (void *)&h[i];
         }
     }
     return NULL;
@@ -319,8 +317,8 @@ int main(int argc, char **argv) {
             fprintf(stderr, "N должно быть положительным числом\n");
             return 1;
         }
-    
-        pid_t pids[MAX_PROCESSES];
+
+        int status;
         int active_processes = 0;
     
         for (int i = first_file_index; i <= last_file_index; i++) {
@@ -331,8 +329,9 @@ int main(int argc, char **argv) {
     
             for (int copy_num = 1; copy_num <= N; copy_num++) {
                 if (active_processes >= MAX_PROCESSES) {
-                    wait(NULL);
-                    active_processes--;
+                    if (waitpid(-1, &status, 0) > 0) {
+                        active_processes--;
+                    }
                 }
     
                 pid_t pid = fork();
@@ -343,7 +342,7 @@ int main(int argc, char **argv) {
                     exit(0); 
                 } 
                 else if (pid > 0) {
-                    pids[active_processes++] = pid;
+                    active_processes++;
                 } 
                 else {
                     fprintf(stderr, "Ошибка создания процесса для копирования\n");
@@ -352,8 +351,9 @@ int main(int argc, char **argv) {
         }
     
         while (active_processes > 0) {
-            wait(NULL);
-            active_processes--;
+            if (waitpid(-1, &status, 0) > 0) {
+                active_processes--;
+            }
         }
     }
 
